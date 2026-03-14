@@ -46,6 +46,20 @@ Why: 60% of AI code faults are silent logic failures. TDD is the primary defense
 
 ---
 
+## Gate 1.2c — Local Security Pre-Check
+
+| Criteria | Pass | Fail |
+|---|---|---|
+| Secret scan passes locally | `detect-secrets scan` clean | High-entropy strings or secrets detected |
+| Static analysis passes | `bandit -r src/ -ll` clean | SQL injection, unsafe deserialization, or exec flagged |
+| Gitignore complete | `*token*`, `*.env`, `*secret*`, `*credential*` patterns present | Missing patterns for sensitive file types |
+
+**Why this gate exists:** Security scanners run in CI anyway. Running locally gives instant feedback instead of a multi-minute CI round-trip. In real-world usage, 3 CI failures (hardcoded Drive IDs, f-string SQL, missing gitignore glob) were all detectable locally before the PR was created.
+
+**Automation:** Add `detect-secrets` and `bandit` as pre-commit hooks. See `config/pre-commit-config.yml.template`.
+
+---
+
 ## Gate 1.3 — Risk-Based Regression
 
 | Criteria | Pass | Fail |

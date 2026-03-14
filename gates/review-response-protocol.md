@@ -75,7 +75,7 @@ logged with context (user_id, input_data) and a user-friendly message is returne
 
 ---
 
-## 7 Rules
+## 8 Rules
 
 1. **Every comment gets a reply.** 7 comments = 7 replies. No silent ignoring.
 
@@ -89,7 +89,9 @@ logged with context (user_id, input_data) and a user-friendly message is returne
 
 6. **All fixes go through the pipeline.** Fix in the PR branch, push, CI re-runs. Never push fixes directly to main.
 
-7. **Post a summary comment before merge:**
+7. **Fix review items in the same session.** When review findings are identified, fix them before ending the session. If context is low, compact and fix. Never defer fixes to a new session — context loss between sessions causes items to be dropped.
+
+8. **Post a summary comment before merge:**
 
 ```
 ## Review Response Summary

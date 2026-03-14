@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Pre-commit hook: reject source files over MAX_LINES lines.
+# Copy to your project and configure in .pre-commit-config.yaml:
+#
+#   - repo: local
+#     hooks:
+#       - id: check-file-size
+#         name: check source files under 400 lines
+#         language: script
+#         entry: scripts/check_file_size.sh
+#         types: [python]        # adjust for your language
+#         exclude: ^tests/       # adjust exclusions as needed
+#
+# Customize MAX_LINES and the skip pattern for your project.
+
+MAX_LINES=400
+EXIT_CODE=0
+
+for file in "$@"; do
+    # Skip test files (adjust pattern as needed)
+    if [[ "$file" == tests/* ]]; then
+        continue
+    fi
+
+    lines=$(wc -l < "$file")
+    if [ "$lines" -gt "$MAX_LINES" ]; then
+        echo "FAIL: $file has $lines lines (max $MAX_LINES). Decompose before committing."
+        EXIT_CODE=1
+    fi
+done
+
+exit $EXIT_CODE

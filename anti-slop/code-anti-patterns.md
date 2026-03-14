@@ -1,4 +1,4 @@
-# Code Anti-Patterns (15 Patterns)
+# Code Anti-Patterns (16 Patterns)
 
 AI-generated code exhibits predictable failure modes. These 15 patterns appear across languages, frameworks, and project types. Each pattern includes what it looks like, why it's dangerous, how to detect it, and how to fix it.
 
@@ -336,3 +336,33 @@ def process_upload(filename, content):
 **How to detect:** For every function that accepts external input, check if test cases include malicious inputs.
 
 **How to fix:** See `security/adversarial-input-patterns.md` for copy-paste test fixtures covering SQL injection, XSS, path traversal, oversized inputs, and null bytes.
+
+---
+
+## Pattern 16: Sync Mocks for Async Calls
+
+**What it looks like:** Using `MagicMock()` for methods that are `await`-ed in the source code, instead of `AsyncMock()`.
+
+**Example (Python):**
+```python
+# Source code
+async def fetch_transactions(self):
+    result = await self.zoho.list_transactions()  # awaited
+    return result
+
+# Test -- WRONG
+mock_zoho = MagicMock()
+mock_zoho.list_transactions = MagicMock(return_value=[...])  # Not awaitable!
+
+# Test -- CORRECT
+mock_zoho = MagicMock()
+mock_zoho.list_transactions = AsyncMock(return_value=[...])  # Returns a coroutine
+```
+
+**Why it's dangerous:** `MagicMock` returns a `MagicMock` object, not a coroutine. When you `await` it, Python gets a non-awaitable object. In some test frameworks this silently passes (the mock is truthy), masking the fact that the real code path is never exercised. In production, the actual async call behaves completely differently.
+
+**How to detect:**
+- Search test files for `MagicMock` assignments to methods that are `await`-ed in source
+- Run `grep -rn "= MagicMock(" tests/` and cross-reference with `await` usage in corresponding source files
+
+**How to fix:** Use `AsyncMock` (from `unittest.mock`) for any method that is `await`-ed in source code. `AsyncMock` returns a coroutine that resolves to the `return_value`, matching real async behavior.

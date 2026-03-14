@@ -1,6 +1,6 @@
 # Quality Gate Process
 
-A 3-phase, 15-layer quality gate process for AI-assisted software development. This document is project-agnostic and self-contained.
+A 3-phase, 16-layer quality gate process for AI-assisted software development. This document is project-agnostic and self-contained.
 
 ---
 
@@ -21,24 +21,25 @@ A 3-phase, 15-layer quality gate process for AI-assisted software development. T
 
 ## Architecture Overview
 
-### 15 Layers of Defense
+### 16 Layers of Defense
 
 ```
 Layer 1:  TDD (tests capture intent before code exists)
 Layer 2:  Verification gate (prove it works via real output, don't assert)
-Layer 3:  Hallucination check (imports resolve, APIs real)
-Layer 4:  Risk-based regression (existing tests still pass)
-Layer 5:  UAT (real system, real interactions, state-dependent testing)
-Layer 6:  Pre-submit review (fresh AI agent, writer/reviewer separation)
-Layer 7:  PR template (scope statement, checklist, agent action log)
-Layer 8:  CI tests (independent execution, cannot be fabricated)
-Layer 9:  Coverage ratchet (quality floor only goes up)
-Layer 10: Security scan (static analysis, 5+ tools)
-Layer 11: AI code review (second independent review)
-Layer 12: PR size check (keeps changes reviewable)
-Layer 13: Post-deploy smoke (catches prod-only failures)
-Layer 14: Auto-rollback (limits blast radius)
-Layer 15: Metrics + retrospective (catches process decay)
+Layer 3:  Local security pre-check (detect-secrets, bandit, gitignore — instant feedback)
+Layer 4:  Hallucination check (imports resolve, APIs real)
+Layer 5:  Risk-based regression (existing tests still pass)
+Layer 6:  UAT (real system, real interactions, state-dependent testing)
+Layer 7:  Pre-submit review (fresh AI agent, writer/reviewer separation)
+Layer 8:  PR template (scope statement, checklist, agent action log)
+Layer 9:  CI tests (independent execution, cannot be fabricated)
+Layer 10: Coverage ratchet (quality floor only goes up)
+Layer 11: Security scan (static analysis, 5+ tools)
+Layer 12: AI code review (second independent review)
+Layer 13: PR size check (keeps changes reviewable)
+Layer 14: Post-deploy smoke (catches prod-only failures)
+Layer 15: Auto-rollback (limits blast radius)
+Layer 16: Metrics + retrospective (catches process decay)
 ```
 
 ### Pipeline Flow
@@ -322,7 +323,7 @@ HOTFIX PROTOCOL (production down, user impact)
 
 ## Anti-AI Slop Protocol
 
-### 15 Code Anti-Patterns
+### 16 Code Anti-Patterns
 
 | # | Pattern | Why It's Dangerous |
 |---|---|---|
@@ -341,6 +342,7 @@ HOTFIX PROTOCOL (production down, user impact)
 | 13 | Tautological tests | Tests the mock, not the code |
 | 14 | Unsanitized user input | Security vulnerability |
 | 15 | No adversarial input tests | Untested attack surface |
+| 16 | Sync mocks for async calls | Silently passes, masks real behavior |
 
 ### 6 Process Anti-Patterns
 
