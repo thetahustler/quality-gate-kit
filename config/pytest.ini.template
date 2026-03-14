@@ -1,0 +1,39 @@
+# pytest.ini — Python Test Configuration
+#
+# Copy to: pytest.ini (root of your project)
+# Configure: Update src/ path and coverage floor
+
+[pytest]
+# Test discovery
+testpaths = tests
+python_files = test_*.py
+python_functions = test_*
+python_classes = Test*
+
+# Async support (if using async code)
+asyncio_mode = auto
+
+# Coverage configuration
+# Set --cov-fail-under to your current coverage floor
+# The coverage ratchet in CI will enforce this only goes up
+addopts =
+    -v
+    --strict-markers
+    --cov=src
+    --cov-report=term-missing
+    --cov-fail-under=90
+    --timeout=300
+
+# Markers
+markers =
+    slow: marks tests as slow (deselect with '-m "not slow"')
+    integration: marks tests as integration tests (require external services)
+    flaky: marks tests as known flaky (investigate and fix)
+
+# Timeout (seconds) — prevents hanging tests
+timeout = 300
+
+# Warnings
+filterwarnings =
+    error
+    ignore::DeprecationWarning

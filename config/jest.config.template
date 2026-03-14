@@ -1,0 +1,72 @@
+// jest.config.js — Node.js Test Configuration
+//
+// Copy to: jest.config.js (root of your project)
+// Configure: Update paths and coverage floor
+
+module.exports = {
+  // Test discovery
+  testMatch: [
+    "**/tests/**/*.test.js",
+    "**/tests/**/*.test.ts",
+    "**/__tests__/**/*.js",
+    "**/__tests__/**/*.ts",
+  ],
+
+  // Coverage configuration
+  collectCoverage: true,
+  collectCoverageFrom: [
+    "src/**/*.{js,ts}",
+    "!src/**/*.d.ts",
+    "!src/**/index.{js,ts}",
+    "!src/**/*.test.{js,ts}",
+  ],
+
+  // Coverage thresholds — set to your current floor
+  // The coverage ratchet in CI will enforce this only goes up
+  coverageThreshold: {
+    global: {
+      branches: 80,    // CHANGE THIS — set to your current branch coverage
+      functions: 85,   // CHANGE THIS — set to your current function coverage
+      lines: 90,       // CHANGE THIS — set to your current line coverage
+      statements: 90,  // CHANGE THIS — set to your current statement coverage
+    },
+  },
+
+  // Coverage reporters
+  coverageReporters: ["text", "text-summary", "json-summary", "lcov"],
+
+  // Test timeout (milliseconds)
+  testTimeout: 30000,
+
+  // Clear mocks between tests
+  clearMocks: true,
+
+  // Restore mocks between tests
+  restoreMocks: true,
+
+  // TypeScript support (uncomment if using TypeScript)
+  // transform: {
+  //   "^.+\\.tsx?$": "ts-jest",
+  // },
+
+  // Module name mapping (uncomment and configure for path aliases)
+  // moduleNameMapper: {
+  //   "^@/(.*)$": "<rootDir>/src/$1",
+  // },
+
+  // Setup files (uncomment if needed)
+  // setupFilesAfterSetup: ["./tests/setup.js"],
+
+  // Projects for test tiers (uncomment for tiered testing)
+  // projects: [
+  //   {
+  //     displayName: "unit",
+  //     testMatch: ["**/tests/unit/**/*.test.{js,ts}"],
+  //   },
+  //   {
+  //     displayName: "integration",
+  //     testMatch: ["**/tests/integration/**/*.test.{js,ts}"],
+  //     testTimeout: 60000,
+  //   },
+  // ],
+};

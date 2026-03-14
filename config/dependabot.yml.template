@@ -1,0 +1,99 @@
+# dependabot.yml — Dependency Automation
+#
+# Copy to: .github/dependabot.yml
+# Configure: Uncomment the section for your language/package manager
+#
+# Gate covered: 2.7 (Dependency Freshness)
+
+version: 2
+
+updates:
+  # GitHub Actions (always enabled — keeps CI actions updated)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    commit-message:
+      prefix: "chore(deps):"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    # Group minor/patch updates to reduce PR noise
+    groups:
+      actions-minor:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # === PYTHON (uncomment for Python projects) ===
+  # - package-ecosystem: "pip"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   commit-message:
+  #     prefix: "chore(deps):"
+  #   labels:
+  #     - "dependencies"
+  #     - "python"
+  #   # Only auto-PR security updates; review major/minor manually
+  #   open-pull-requests-limit: 10
+  #   groups:
+  #     python-minor:
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+
+  # === NODE.JS (uncomment for Node.js projects) ===
+  # - package-ecosystem: "npm"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   commit-message:
+  #     prefix: "chore(deps):"
+  #   labels:
+  #     - "dependencies"
+  #     - "npm"
+  #   open-pull-requests-limit: 10
+  #   groups:
+  #     npm-minor:
+  #       update-types:
+  #         - "minor"
+  #         - "patch"
+
+  # === GO (uncomment for Go projects) ===
+  # - package-ecosystem: "gomod"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   commit-message:
+  #     prefix: "chore(deps):"
+  #   labels:
+  #     - "dependencies"
+  #     - "go"
+
+  # === RUST (uncomment for Rust projects) ===
+  # - package-ecosystem: "cargo"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #     day: "monday"
+  #   commit-message:
+  #     prefix: "chore(deps):"
+  #   labels:
+  #     - "dependencies"
+  #     - "rust"
+
+  # === DOCKER (uncomment if using Docker) ===
+  # - package-ecosystem: "docker"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   commit-message:
+  #     prefix: "chore(deps):"
+  #   labels:
+  #     - "dependencies"
+  #     - "docker"
