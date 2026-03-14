@@ -26,6 +26,14 @@ repos:
     hooks:
       - id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
+        # Exclude paths that legitimately contain high-entropy strings
+        # YOUR_PROJECT: adjust paths to match your repo layout
+        exclude: |
+          (?x)^(
+            tests/.*|
+            \.github/workflows/.*|
+            docs/.*
+          )$
 
   # === PYTHON SECTION (uncomment for Python projects) ===
 
@@ -42,6 +50,8 @@ repos:
   #     - id: isort
 
   # Python linting
+  # NOTE: If you ignore E501 (line length) in setup.cfg / .flake8, remove
+  # --max-line-length here — the flag is dead when E501 is already suppressed.
   # - repo: https://github.com/PyCQA/flake8
   #   rev: 7.0.0
   #   hooks:
