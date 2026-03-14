@@ -259,3 +259,29 @@ Required status checks (both modes):
 - `security` (Gate 2.3)
 - `review` (Gate 2.4)
 - `pr-size` (Gate 2.5)
+
+### Critical: enforce_admins MUST be true
+
+```bash
+# Verify enforcement
+gh api repos/{owner}/{repo}/branches/main/protection \
+  --jq '.enforce_admins.enabled'
+# Must return: true
+
+# Set enforcement
+gh api repos/{owner}/{repo}/branches/main/protection \
+  --method PUT --input - <<'EOF'
+{
+  "required_status_checks": { "strict": true, "checks": [...] },
+  "enforce_admins": true,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+```
+
+**Why this matters:** Without `enforce_admins`, repo admins and AI agents can bypass all checks via `--admin` flag or local merges to main. This defeats the entire purpose of the quality gate process. The Dependabot incident (julian-v3, 2026-03-14) proved that AI agents WILL rationalize bypassing gates when under context pressure.
+
+**Emergency access:** Temporarily disable via GitHub Settings UI during production-down emergencies. Re-enable immediately after the hotfix merges.
