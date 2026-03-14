@@ -108,6 +108,27 @@ cp /tmp/quality-gate-kit/security/unicode-sanitization-check.sh scripts/
 chmod +x scripts/unicode-sanitization-check.sh
 ```
 
+### 3f. Initialize Secrets Baseline
+
+The `.secrets.baseline` file **must be committed** (not gitignored). See
+[security/secrets-baseline-guide.md](../security/secrets-baseline-guide.md) for details.
+
+```bash
+# Generate baseline
+pip install detect-secrets
+detect-secrets scan > .secrets.baseline
+
+# Review each finding — mark real secrets vs false positives
+detect-secrets audit .secrets.baseline
+
+# Commit it (this is NOT a secret — it's an audit trail)
+git add .secrets.baseline
+```
+
+Also review your `.gitignore` for overly broad patterns like `*token*` or
+`*secret*` that can silently ignore source files. Use specific patterns instead
+(e.g., `token.json`, `.token`).
+
 ---
 
 ## Step 4: Set Branch Protection
@@ -168,3 +189,5 @@ After setup, verify:
 - [ ] Pre-commit hooks run on `git commit`
 - [ ] Branch protection prevents direct push to main
 - [ ] Dependabot creates its first PR within a week
+- [ ] `.secrets.baseline` is committed (not in `.gitignore`)
+- [ ] No overly broad gitignore patterns (`*token*`, `*secret*`)
