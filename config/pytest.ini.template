@@ -24,8 +24,12 @@ addopts =
     --cov-fail-under=90
     --timeout=300
 
-# Markers
+# Test tier markers — use these to run subsets:
+#   pytest -m fast          (unit tests only, < 1 s each)
+#   pytest -m "not slow"    (skip long-running tests)
+#   pytest -m integration   (external-service tests only)
 markers =
+    fast: marks tests as fast unit tests (run with '-m fast' for quick feedback)
     slow: marks tests as slow (deselect with '-m "not slow"')
     integration: marks tests as integration tests (require external services)
     flaky: marks tests as known flaky (investigate and fix)
