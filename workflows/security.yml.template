@@ -90,9 +90,11 @@ jobs:
       # === END LANGUAGE-SPECIFIC ===
 
       # Layer 4: Advanced SAST (all languages)
+      # Pin semgrep in requirements-dev.txt (e.g. semgrep==1.67.0) instead
+      # of installing unpinned — unpinned installs break reproducibility.
       - name: Semgrep SAST
         run: |
-          pip install semgrep
+          pip install -r requirements-dev.txt  # YOUR_PROJECT: ensure semgrep is pinned here
           semgrep scan --config=auto --error --quiet
 
       # Layer 5: Config Integrity
