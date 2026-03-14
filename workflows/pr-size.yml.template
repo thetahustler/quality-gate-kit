@@ -1,0 +1,99 @@
+# pr-size.yml — PR Size Check
+#
+# Copy to: .github/workflows/pr-size.yml
+# Configure: Set PR_SIZE_LIMIT to your preferred threshold
+#
+# Gate covered: 2.5 (PR Size Check)
+
+name: PR Size
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# === CONFIGURATION ===
+env:
+  PR_SIZE_LIMIT: 400  # Maximum lines changed (additions + deletions). CHANGE THIS.
+# === END CONFIGURATION ===
+
+jobs:
+  pr-size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Check PR size
+        id: size
+        run: |
+          # Get total lines changed
+          STATS=$(gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }} | \
+            grep -E '^\+|^\-' | grep -v '^\+\+\+\|^\-\-\-' | wc -l)
+
+          echo "Total lines changed: $STATS"
+          echo "Limit: $PR_SIZE_LIMIT"
+          echo "lines_changed=$STATS" >> $GITHUB_OUTPUT
+
+          if [ "$STATS" -gt "$PR_SIZE_LIMIT" ]; then
+            echo "size_ok=false" >> $GITHUB_OUTPUT
+          else
+            echo "size_ok=true" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check for size override
+        id: override
+        if: steps.size.outputs.size_ok == 'false'
+        run: |
+          # Check if PR body contains a size override justification
+          PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq '.body' --repo ${{ github.repository }})
+
+          if echo "$PR_BODY" | grep -qi "size-override:"; then
+            echo "Size override found in PR body."
+            echo "has_override=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_override=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report result
+        run: |
+          LINES="${{ steps.size.outputs.lines_changed }}"
+          SIZE_OK="${{ steps.size.outputs.size_ok }}"
+          HAS_OVERRIDE="${{ steps.override.outputs.has_override }}"
+
+          if [ "$SIZE_OK" = "true" ]; then
+            echo "PR size OK: $LINES lines changed (limit: $PR_SIZE_LIMIT)"
+            exit 0
+          fi
+
+          if [ "$HAS_OVERRIDE" = "true" ]; then
+            echo "PR exceeds size limit ($LINES > $PR_SIZE_LIMIT) but has override justification."
+            # Post warning comment but don't block
+            gh pr comment ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
+              --body "**PR Size Warning**: This PR changes $LINES lines (limit: $PR_SIZE_LIMIT). Size override accepted. Ensure the justification is valid (migration, schema change, or generated code)."
+            exit 0
+          fi
+
+          # No override — block
+          echo "ERROR: PR too large ($LINES lines, limit: $PR_SIZE_LIMIT)"
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "**PR Size Blocked**: This PR changes $LINES lines, exceeding the $PR_SIZE_LIMIT line limit.
+
+          **Options:**
+          1. Split into smaller PRs (recommended)
+          2. Add \`size-override: [justification]\` to the PR body for migrations, schema changes, or generated code
+
+          Keeping PRs small improves reviewability and reduces risk."
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

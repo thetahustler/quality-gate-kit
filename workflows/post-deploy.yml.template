@@ -1,0 +1,200 @@
+# post-deploy.yml — Post-Deploy Smoke Test
+#
+# Copy to: .github/workflows/post-deploy.yml
+# Configure: Set APP_URL, alert channel, and smoke test checks
+#
+# Gates covered: 3.2 (Smoke Test), 3.3 (Auto-Rollback), 3.4 (Alert)
+
+name: Post-Deploy Smoke Test
+
+on:
+  # Option 1: Trigger after deploy workflow completes
+  workflow_run:
+    workflows: ["Deploy"]  # CHANGE THIS to your deploy workflow name
+    types: [completed]
+    branches: [main]
+
+  # Option 2: Manual trigger for testing
+  workflow_dispatch:
+
+# === CONFIGURATION ===
+env:
+  APP_URL: "https://your-app.example.com"  # CHANGE THIS
+  SMOKE_TEST_RETRIES: 3
+  SMOKE_TEST_RETRY_DELAY: 30  # seconds
+  # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}  # Uncomment for Slack alerts
+  # TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}  # Uncomment for Telegram alerts
+  # TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+# === END CONFIGURATION ===
+
+permissions:
+  contents: read
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    # Only run if deploy succeeded
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+
+      - name: Wait for deploy to stabilize
+        run: sleep 15
+
+      - name: Run smoke tests
+        id: smoke
+        run: |
+          PASSED=true
+          FAILURES=""
+
+          for attempt in $(seq 1 $SMOKE_TEST_RETRIES); do
+            echo "=== Smoke test attempt $attempt/$SMOKE_TEST_RETRIES ==="
+            PASSED=true
+            FAILURES=""
+
+            # Check 1: Health endpoint
+            echo "Check 1: Health endpoint..."
+            HTTP_CODE=$(curl -s -o /tmp/health_response.txt -w "%{http_code}" \
+              "$APP_URL/health" --max-time 10 2>/dev/null || echo "000")
+
+            if [ "$HTTP_CODE" = "000" ]; then
+              echo "  FAIL: App unreachable (connection refused or timeout)"
+              PASSED=false
+              FAILURES="$FAILURES\n- Health endpoint: unreachable"
+              # If app won't start, don't retry — immediate failure
+              if [ "$attempt" -eq 1 ]; then
+                echo "App appears down. Checking if it's a startup failure..."
+                sleep 5
+                HTTP_CODE2=$(curl -s -o /dev/null -w "%{http_code}" "$APP_URL/health" --max-time 5 2>/dev/null || echo "000")
+                if [ "$HTTP_CODE2" = "000" ]; then
+                  echo "Confirmed: App won't start. Skipping retries."
+                  echo "smoke_result=app_down" >> $GITHUB_OUTPUT
+                  echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+                  exit 1
+                fi
+              fi
+            elif [ "$HTTP_CODE" != "200" ]; then
+              echo "  FAIL: Health returned HTTP $HTTP_CODE"
+              PASSED=false
+              FAILURES="$FAILURES\n- Health endpoint: HTTP $HTTP_CODE"
+            else
+              echo "  PASS: Health endpoint OK"
+            fi
+
+            # Check 2: Critical API endpoint
+            # === CUSTOMIZE THIS CHECK ===
+            echo "Check 2: Critical API endpoint..."
+            API_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+              "$APP_URL/api/status" --max-time 10 2>/dev/null || echo "000")
+
+            if [ "$API_CODE" != "200" ] && [ "$API_CODE" != "401" ]; then
+              echo "  FAIL: API returned HTTP $API_CODE"
+              PASSED=false
+              FAILURES="$FAILURES\n- API status: HTTP $API_CODE"
+            else
+              echo "  PASS: API endpoint responding"
+            fi
+            # === END CUSTOMIZE ===
+
+            # Add more checks here as needed:
+            # Check 3: Database connectivity
+            # Check 4: External service connectivity
+            # Check 5: Critical user flow
+
+            if [ "$PASSED" = "true" ]; then
+              echo ""
+              echo "All smoke tests passed on attempt $attempt."
+              echo "smoke_result=passed" >> $GITHUB_OUTPUT
+              exit 0
+            fi
+
+            if [ "$attempt" -lt "$SMOKE_TEST_RETRIES" ]; then
+              echo ""
+              echo "Retrying in $SMOKE_TEST_RETRY_DELAY seconds..."
+              sleep $SMOKE_TEST_RETRY_DELAY
+            fi
+          done
+
+          echo ""
+          echo "SMOKE TESTS FAILED after $SMOKE_TEST_RETRIES attempts."
+          echo -e "Failures:$FAILURES"
+          echo "smoke_result=failed" >> $GITHUB_OUTPUT
+          echo "failures=$FAILURES" >> $GITHUB_OUTPUT
+          exit 1
+
+      # Gate 3.3: Auto-Rollback (on failure)
+      - name: Rollback deployment
+        if: failure()
+        run: |
+          echo "Smoke test failed. Initiating rollback..."
+
+          # === PLATFORM-SPECIFIC ROLLBACK ===
+          # Uncomment the section for your deploy platform:
+
+          # Railway:
+          # curl -X POST "https://backboard.railway.app/graphql/v2" \
+          #   -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"query": "mutation { deploymentRollback(id: \"...\") { id } }"}'
+
+          # Heroku:
+          # heroku rollback --app your-app-name
+
+          # Vercel:
+          # vercel rollback --token ${{ secrets.VERCEL_TOKEN }}
+
+          # AWS ECS:
+          # aws ecs update-service --cluster your-cluster --service your-service --force-new-deployment
+
+          # Kubernetes:
+          # kubectl rollout undo deployment/your-app
+
+          echo "Rollback command configured. Replace placeholder with your platform."
+          # === END PLATFORM-SPECIFIC ===
+
+      # Gate 3.4: Alert on failure
+      - name: Send failure alert
+        if: failure()
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          WORKFLOW_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+          ALERT_MSG="DEPLOY ALERT: Smoke Test Failed
+
+          Commit: $COMMIT_SHA
+          Message: $COMMIT_MSG
+          Action: Rollback initiated
+          Details: $WORKFLOW_URL"
+
+          echo "$ALERT_MSG"
+
+          # === NOTIFICATION CHANNEL (uncomment your preferred method) ===
+
+          # Slack:
+          # curl -X POST "$SLACK_WEBHOOK_URL" \
+          #   -H "Content-Type: application/json" \
+          #   -d "{\"text\": \"$ALERT_MSG\"}"
+
+          # Telegram:
+          # curl -s "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendMessage" \
+          #   -d "chat_id=$TELEGRAM_CHAT_ID" \
+          #   -d "text=$ALERT_MSG"
+
+          # Email (via SendGrid):
+          # curl -X POST "https://api.sendgrid.com/v3/mail/send" \
+          #   -H "Authorization: Bearer ${{ secrets.SENDGRID_API_KEY }}" \
+          #   -H "Content-Type: application/json" \
+          #   -d '{"personalizations":[{"to":[{"email":"you@example.com"}]}],"from":{"email":"ci@example.com"},"subject":"Deploy Alert","content":[{"type":"text/plain","value":"'"$ALERT_MSG"'"}]}'
+
+          # === END NOTIFICATION CHANNEL ===
+
+      # Gate 3.5: Log metrics
+      - name: Log deploy metrics
+        if: always()
+        run: |
+          echo "Deploy metrics:"
+          echo "  Commit: ${{ github.sha }}"
+          echo "  Result: ${{ steps.smoke.outputs.smoke_result || 'unknown' }}"
+          echo "  Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "  Workflow: ${{ github.run_id }}"

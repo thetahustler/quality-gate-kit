@@ -1,0 +1,126 @@
+# test.yml — Test Suite + Coverage Ratchet
+#
+# Copy to: .github/workflows/test.yml
+# Configure: Replace LANGUAGE-SPECIFIC sections with your stack
+#
+# Gates covered: 2.1 (Test Suite), 2.2 (Coverage Ratchet)
+
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      # Pin to SHA for supply chain security
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0  # Full history for coverage comparison
+
+      # === LANGUAGE-SPECIFIC SECTION (replace for your stack) ===
+
+      # -- Python --
+      - name: Set up Python
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.1
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio
+
+      - name: Run tests
+        run: pytest tests/ -v --timeout=300
+
+      - name: Run tests with coverage
+        run: pytest --cov=src --cov-report=json --cov-report=term -v
+
+      # -- Node.js (uncomment and remove Python section) --
+      # - name: Set up Node.js
+      #   uses: actions/setup-node@1e60f620b9541d16bece96c5465dc8ee9832be0b  # v4.0.3
+      #   with:
+      #     node-version: "20"
+      #
+      # - name: Install dependencies
+      #   run: npm ci
+      #
+      # - name: Run tests with coverage
+      #   run: npx jest --ci --coverage --coverageReporters=json-summary
+
+      # -- Go (uncomment and remove Python section) --
+      # - name: Set up Go
+      #   uses: actions/setup-go@0a12ed9d6a96ab950c8f026ed9f722fe0da7ef32  # v5.0.2
+      #   with:
+      #     go-version: "1.22"
+      #
+      # - name: Run tests with coverage
+      #   run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      # -- Rust (uncomment and remove Python section) --
+      # - name: Run tests with coverage
+      #   run: cargo tarpaulin --out json
+
+      # === END LANGUAGE-SPECIFIC ===
+
+  coverage-ratchet:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: test
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0
+
+      # === LANGUAGE-SPECIFIC SECTION ===
+
+      # -- Python --
+      - name: Set up Python
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f  # v5.1.1
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest pytest-cov
+
+      - name: Get main branch coverage
+        run: |
+          git checkout main
+          pytest --cov=src --cov-report=json -q 2>/dev/null || true
+          MAIN_COV=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])" 2>/dev/null || echo "0")
+          echo "MAIN_COVERAGE=$MAIN_COV" >> $GITHUB_ENV
+          git checkout -
+
+      - name: Get PR branch coverage
+        run: |
+          pytest --cov=src --cov-report=json -q
+          PR_COV=$(python -c "import json; print(json.load(open('coverage.json'))['totals']['percent_covered'])")
+          echo "PR_COVERAGE=$PR_COV" >> $GITHUB_ENV
+
+      - name: Coverage ratchet check
+        run: |
+          echo "Main coverage: $MAIN_COVERAGE%"
+          echo "PR coverage:   $PR_COVERAGE%"
+          python -c "
+          main = float('$MAIN_COVERAGE')
+          pr = float('$PR_COVERAGE')
+          if pr < main:
+              print(f'FAIL: Coverage decreased from {main:.1f}% to {pr:.1f}%')
+              print('Coverage can only go up. If removing dead code, add a comment explaining the decrease.')
+              exit(1)
+          else:
+              print(f'PASS: Coverage maintained ({main:.1f}% -> {pr:.1f}%)')
+          "
+
+      # === END LANGUAGE-SPECIFIC ===

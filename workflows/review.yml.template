@@ -1,0 +1,161 @@
+# review.yml — AI Code Review
+#
+# Copy to: .github/workflows/review.yml
+# Configure: Set your AI review tool and API key
+#
+# Gates covered: 2.4 (AI Code Review), 2.4b (Review Content Validation)
+#
+# This template uses Claude via the Anthropic API. Adapt for your preferred
+# AI review tool (GitHub Copilot, CodeRabbit, etc.)
+
+name: Review
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11  # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Get PR diff
+        id: diff
+        run: |
+          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --repo ${{ github.repository }})
+          # Save to file (diffs can be large)
+          echo "$DIFF" > /tmp/pr_diff.txt
+          echo "diff_size=$(wc -c < /tmp/pr_diff.txt)" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: AI Code Review
+        id: review
+        run: |
+          # === CONFIGURE YOUR AI REVIEW TOOL HERE ===
+          #
+          # Option A: Claude API (Anthropic)
+          # Requires: ANTHROPIC_API_KEY secret
+          #
+          # Option B: OpenAI API
+          # Requires: OPENAI_API_KEY secret
+          #
+          # Option C: CodeRabbit, GitHub Copilot, or other tool
+          # Follow their setup instructions
+          #
+          # The review prompt below works with any LLM-based reviewer.
+          # === END CONFIGURATION ===
+
+          cat > /tmp/review_prompt.txt << 'PROMPT'
+          You are a senior code reviewer. Review the following PR diff with a focus on correctness, security, and code quality.
+
+          ## Anti-Pattern Checklist (flag any violations)
+
+          ### Code Anti-Patterns
+          1. COPY-PASTE: Is the same logic duplicated across files?
+          2. PASS-THROUGH WRAPPERS: Functions that just call another with same args?
+          3. FILE BLOAT: Any files over 400 lines?
+          4. HAPPY-PATH-ONLY TESTS: Test files only check success scenarios?
+          5. SUCCESS-ONLY MOCKS: Mocks only return success, no failure tests?
+          6. BARE EXCEPT: Exception handlers that catch everything and do nothing?
+          7. TODO/PLACEHOLDER: Critical features left as TODO?
+          8. WEAKENED TESTS: Existing test assertions removed or loosened?
+          9. REINVENTED STDLIB: Custom utilities that stdlib already provides?
+          10. OVER-ABSTRACTION: Unnecessary layers of indirection?
+          11. HALLUCINATED IMPORTS: Imports or APIs that don't exist?
+          12. VERBOSE FILLER: Unnecessary comments restating the code?
+          13. TAUTOLOGICAL TESTS: Tests asserting on mock return values?
+          14. UNSANITIZED INPUT: External input in SQL, paths, URLs, commands?
+          15. NO ADVERSARIAL TESTS: Functions with external input but no malicious input tests?
+
+          ### Security Review
+          - Hardcoded secrets, tokens, or credentials?
+          - User input unsanitized in queries, paths, or commands?
+          - New dependencies introduced? Pinned to specific versions?
+          - Error messages exposing internals (stack traces, paths)?
+
+          ### Code Quality
+          - Does every changed file serve the PR's stated scope?
+          - New functions under 50 lines?
+          - Adequate error handling for external calls?
+
+          ## Output Format
+          For each finding:
+          - **Severity**: Critical / Important / Minor
+          - **Pattern**: Which anti-pattern (1-15) or concern
+          - **Location**: File and line
+          - **Finding**: What's wrong
+          - **Fix**: What should be done
+
+          If no issues found, explain what was checked and approve.
+          PROMPT
+
+          # Example: Using curl to call an AI API
+          # Adapt this section for your specific tool
+          echo "Review prompt prepared. Configure your AI review API call here."
+          echo "See review prompt at /tmp/review_prompt.txt"
+
+          # Placeholder for actual API call — replace with your implementation:
+          # REVIEW_BODY=$(curl -s https://api.anthropic.com/v1/messages \
+          #   -H "x-api-key: $ANTHROPIC_API_KEY" \
+          #   -H "content-type: application/json" \
+          #   -d "{...}")
+
+          # For now, output the prompt for manual setup
+          REVIEW_BODY="AI review configured. Replace this placeholder with your API integration."
+          echo "$REVIEW_BODY" > /tmp/review_body.txt
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      # Gate 2.4b: Review Content Validation
+      - name: Validate review content
+        run: |
+          REVIEW_BODY=$(cat /tmp/review_body.txt)
+          BODY_LENGTH=${#REVIEW_BODY}
+
+          echo "Review body length: $BODY_LENGTH characters"
+
+          if [ "$BODY_LENGTH" -lt 100 ]; then
+            echo "ERROR: Review body is too short ($BODY_LENGTH chars). Minimum 100 chars required."
+            echo "This may indicate a silently passing review. Re-run required."
+            exit 1
+          fi
+
+          echo "Review content validation passed."
+
+      - name: Post review comment
+        if: success()
+        run: |
+          REVIEW_BODY=$(cat /tmp/review_body.txt)
+          gh pr comment ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }} \
+            --body "$REVIEW_BODY"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # PR Content Sanitization (Gate 2.8)
+      - name: Check PR content for injection attempts
+        run: |
+          # Get PR title and body
+          PR_TITLE="${{ github.event.pull_request.title }}"
+          PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body --jq '.body' --repo ${{ github.repository }})
+
+          # Check for zero-width characters
+          if echo "$PR_TITLE$PR_BODY" | grep -P '[\x{200B}\x{200C}\x{200D}\x{FEFF}]' 2>/dev/null; then
+            echo "ERROR: Zero-width characters detected in PR content!"
+            echo "This may be a prompt injection attempt."
+            exit 1
+          fi
+
+          echo "PR content sanitization passed."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
