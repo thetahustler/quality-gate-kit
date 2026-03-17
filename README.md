@@ -146,6 +146,14 @@ This process is validated against four research areas:
 | 2026 AI Security Research | 12 | 12 | 100% |
 | **Total** | **44** | **44** | **100%** |
 
+## Related: Agentic Shipwright
+
+This toolkit provides CI workflow templates and security scripts. For the full agentic development methodology — agent roles, pipeline state machine, health reviews, and tuning — see the **[Agentic Shipwright Wiki](https://github.com/thetahustler/agentic-shipwright/wiki)**.
+
+Shipwright documents the orchestration methodology. quality-gate-kit provides the CI implementation. They are complementary:
+- **Shipwright** = how agents coordinate (Recon → Builder → Gate pipeline)
+- **quality-gate-kit** = what CI checks enforce (tests, security, review, size limits)
+
 ## License
 
 MIT License. See [LICENSE](LICENSE) for details.
